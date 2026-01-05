@@ -1,15 +1,7 @@
 "use client";
 
-import {
-  ComposedChart,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  ReferenceLine,
-  Bar,
-} from "recharts";
+import { useEffect, useRef } from "react";
+import { createChart, ColorType, CrosshairMode, IChartApi, ISeriesApi } from "lightweight-charts";
 import { StockDataPoint } from "@/services/mockStockData";
 
 interface StockChartProps {
@@ -21,43 +13,6 @@ interface StockChartProps {
   primaryResistance?: number;
 }
 
-// Custom Candlestick component
-const Candlestick = (props: any) => {
-  const { x, y, width, height, open, close, high, low, index } = props;
-
-  const isGreen = close > open;
-  const color = isGreen ? "#10b981" : "#ef4444";
-  const wickX = x + width / 2;
-
-  // Calculate candlestick body
-  const bodyHeight = Math.abs(y - (y + height));
-  const bodyY = isGreen ? y : y;
-
-  return (
-    <g>
-      {/* Wick (high-low line) */}
-      <line
-        x1={wickX}
-        y1={props.payload.highY}
-        x2={wickX}
-        y2={props.payload.lowY}
-        stroke={color}
-        strokeWidth={1}
-      />
-      {/* Candle body */}
-      <rect
-        x={x}
-        y={bodyY}
-        width={width}
-        height={bodyHeight || 1}
-        fill={color}
-        stroke={color}
-        strokeWidth={1}
-      />
-    </g>
-  );
-};
-
 export default function StockChart({
   data,
   entryPoint,
@@ -66,226 +21,152 @@ export default function StockChart({
   primarySupport,
   primaryResistance,
 }: StockChartProps) {
-  // Sample every nth point for better performance with 1 year of data
-  const sampleRate = Math.ceil(data.length / 100); // Show ~100 candles
-  const sampledData = data.filter((_, index) => index % sampleRate === 0);
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
-  // Format data for recharts with calculated Y positions
-  const chartData = sampledData.map((point) => {
-    const body = Math.abs(point.close - point.open);
+  useEffect(() => {
+    if (!chartContainerRef.current) return;
 
-    return {
-      date: new Date(point.date).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
+    // Create chart
+    const chart = createChart(chartContainerRef.current, {
+      layout: {
+        background: { type: ColorType.Solid, color: "#0f172a" },
+        textColor: "#94a3b8",
+      },
+      grid: {
+        vertLines: { color: "#1e293b" },
+        horzLines: { color: "#1e293b" },
+      },
+      crosshair: {
+        mode: CrosshairMode.Normal,
+        vertLine: {
+          color: "#475569",
+          width: 1,
+          style: 1,
+          labelBackgroundColor: "#3b82f6",
+        },
+        horzLine: {
+          color: "#475569",
+          width: 1,
+          style: 1,
+          labelBackgroundColor: "#3b82f6",
+        },
+      },
+      rightPriceScale: {
+        borderColor: "#334155",
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.2,
+        },
+      },
+      timeScale: {
+        borderColor: "#334155",
+        timeVisible: true,
+        secondsVisible: false,
+      },
+      width: chartContainerRef.current.clientWidth,
+      height: 500,
+    });
+
+    // Add candlestick series
+    const candlestickSeries = (chart as any).addCandlestickSeries({
+      upColor: "#10b981",
+      downColor: "#ef4444",
+      borderUpColor: "#10b981",
+      borderDownColor: "#ef4444",
+      wickUpColor: "#10b981",
+      wickDownColor: "#ef4444",
+    });
+
+    // Format data for lightweight-charts
+    const formattedData = data.map((point) => ({
+      time: point.date,
       open: point.open,
       high: point.high,
       low: point.low,
       close: point.close,
-      volume: point.volume,
-      // For candlestick rendering
-      wickTop: point.high,
-      wickBottom: point.low,
-      bodyTop: Math.max(point.open, point.close),
-      bodyBottom: Math.min(point.open, point.close),
-    };
-  });
+    }));
 
-  // Calculate price range for Y-axis
-  const allPrices = data.flatMap((d) => [d.high, d.low]);
-  const minPrice = Math.min(...allPrices);
-  const maxPrice = Math.max(...allPrices);
-  const padding = (maxPrice - minPrice) * 0.1;
+    candlestickSeries.setData(formattedData);
 
-  // Custom tooltip
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const isGreen = data.close > data.open;
-
-      return (
-        <div className="bg-slate-800 border border-slate-700 rounded-lg p-3 text-xs">
-          <p className="text-slate-400 mb-2">{data.date}</p>
-          <div className="space-y-1">
-            <p className="text-slate-300">
-              <span className="text-slate-500">Open:</span> ${data.open.toFixed(2)}
-            </p>
-            <p className="text-slate-300">
-              <span className="text-slate-500">High:</span> ${data.high.toFixed(2)}
-            </p>
-            <p className="text-slate-300">
-              <span className="text-slate-500">Low:</span> ${data.low.toFixed(2)}
-            </p>
-            <p className={isGreen ? "text-green-400" : "text-red-400"}>
-              <span className="text-slate-500">Close:</span> ${data.close.toFixed(2)}
-            </p>
-            <p className="text-slate-300 text-[10px] pt-1 border-t border-slate-700">
-              Vol: {(data.volume / 1000000).toFixed(1)}M
-            </p>
-          </div>
-        </div>
-      );
+    // Add price lines for technical analysis
+    if (targetPrice) {
+      candlestickSeries.createPriceLine({
+        price: targetPrice,
+        color: "#10b981",
+        lineWidth: 2,
+        lineStyle: 2, // Dashed
+        axisLabelVisible: true,
+        title: "🎯 Target",
+      });
     }
-    return null;
-  };
+
+    if (primaryResistance) {
+      candlestickSeries.createPriceLine({
+        price: primaryResistance,
+        color: "#f59e0b",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "Resistance",
+      });
+    }
+
+    if (entryPoint) {
+      candlestickSeries.createPriceLine({
+        price: entryPoint,
+        color: "#3b82f6",
+        lineWidth: 2,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "📈 Entry",
+      });
+    }
+
+    if (primarySupport) {
+      candlestickSeries.createPriceLine({
+        price: primarySupport,
+        color: "#f59e0b",
+        lineWidth: 1,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "Support",
+      });
+    }
+
+    if (stopLoss) {
+      candlestickSeries.createPriceLine({
+        price: stopLoss,
+        color: "#ef4444",
+        lineWidth: 2,
+        lineStyle: 2,
+        axisLabelVisible: true,
+        title: "🛡️ Stop Loss",
+      });
+    }
+
+    // Handle resize
+    const handleResize = () => {
+      if (chartContainerRef.current) {
+        chart.applyOptions({
+          width: chartContainerRef.current.clientWidth,
+        });
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+
+    // Fit content
+    chart.timeScale().fitContent();
+
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      chart.remove();
+    };
+  }, [data, entryPoint, stopLoss, targetPrice, primarySupport, primaryResistance]);
 
   return (
     <div className="w-full">
-      <ResponsiveContainer width="100%" height={500}>
-        <ComposedChart data={chartData} margin={{ top: 20, right: 60, bottom: 20, left: 10 }}>
-          <defs>
-            <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-            </linearGradient>
-          </defs>
-
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
-
-          <XAxis
-            dataKey="date"
-            stroke="#64748b"
-            style={{ fontSize: "11px" }}
-            interval="preserveStartEnd"
-            minTickGap={50}
-          />
-
-          <YAxis
-            stroke="#64748b"
-            style={{ fontSize: "11px" }}
-            domain={[minPrice - padding, maxPrice + padding]}
-            tickFormatter={(value) => `$${value.toFixed(0)}`}
-            orientation="right"
-          />
-
-          <Tooltip content={<CustomTooltip />} />
-
-          {/* Technical Analysis Lines */}
-          {targetPrice && (
-            <ReferenceLine
-              y={targetPrice}
-              stroke="#10b981"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              label={{
-                value: `🎯 Target: $${targetPrice.toFixed(2)}`,
-                position: "right",
-                fill: "#10b981",
-                fontSize: 12,
-              }}
-            />
-          )}
-
-          {primaryResistance && (
-            <ReferenceLine
-              y={primaryResistance}
-              stroke="#f59e0b"
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
-              label={{
-                value: `Resistance: $${primaryResistance.toFixed(2)}`,
-                position: "right",
-                fill: "#f59e0b",
-                fontSize: 11,
-              }}
-            />
-          )}
-
-          {entryPoint && (
-            <ReferenceLine
-              y={entryPoint}
-              stroke="#3b82f6"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              label={{
-                value: `📈 Entry: $${entryPoint.toFixed(2)}`,
-                position: "right",
-                fill: "#3b82f6",
-                fontSize: 12,
-              }}
-            />
-          )}
-
-          {primarySupport && (
-            <ReferenceLine
-              y={primarySupport}
-              stroke="#f59e0b"
-              strokeWidth={1.5}
-              strokeDasharray="3 3"
-              label={{
-                value: `Support: $${primarySupport.toFixed(2)}`,
-                position: "right",
-                fill: "#f59e0b",
-                fontSize: 11,
-              }}
-            />
-          )}
-
-          {stopLoss && (
-            <ReferenceLine
-              y={stopLoss}
-              stroke="#ef4444"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              label={{
-                value: `🛡️ Stop Loss: $${stopLoss.toFixed(2)}`,
-                position: "right",
-                fill: "#ef4444",
-                fontSize: 12,
-              }}
-            />
-          )}
-
-          {/* Render candlesticks using Bar chart */}
-          <Bar
-            dataKey="bodyTop"
-            fill="#10b981"
-            shape={(props: any) => {
-              const { x, y, width, payload, index } = props;
-              const { open, close, high, low, bodyTop, bodyBottom } = payload;
-              const isGreen = close > open;
-              const color = isGreen ? "#10b981" : "#ef4444";
-
-              // Calculate positions
-              const wickX = x + width / 2;
-
-              // Get Y scale from chart
-              const yScale = props.yAxis?.scale;
-              if (!yScale) return <g />;
-
-              const highY = yScale(high);
-              const lowY = yScale(low);
-              const topY = yScale(bodyTop);
-              const bottomY = yScale(bodyBottom);
-
-              return (
-                <g key={`candle-${index}`}>
-                  {/* High-Low wick */}
-                  <line
-                    x1={wickX}
-                    y1={highY}
-                    x2={wickX}
-                    y2={lowY}
-                    stroke={color}
-                    strokeWidth={1}
-                  />
-                  {/* Open-Close body */}
-                  <rect
-                    x={x + width * 0.2}
-                    y={topY}
-                    width={width * 0.6}
-                    height={Math.max(Math.abs(bottomY - topY), 1)}
-                    fill={color}
-                    stroke={color}
-                    strokeWidth={1}
-                  />
-                </g>
-              );
-            }}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+      <div ref={chartContainerRef} className="w-full rounded-lg overflow-hidden" />
 
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-4 text-xs text-slate-400">
@@ -314,6 +195,11 @@ export default function StockChart({
           <span>Stop Loss</span>
         </div>
       </div>
+
+      {/* Instructions */}
+      <p className="text-xs text-slate-500 mt-3">
+        💡 Hover over candles for details • Drag to pan • Scroll to zoom • Double-click to reset
+      </p>
     </div>
   );
 }
