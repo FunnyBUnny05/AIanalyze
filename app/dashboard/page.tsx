@@ -118,9 +118,16 @@ export default function Dashboard() {
             {/* Chart */}
             <div className="bg-slate-900 border border-slate-800 rounded-lg p-6">
               <h2 className="text-xl font-bold text-white mb-4">
-                Price Chart - {analysis.ticker}
+                1-Year Candlestick Chart - {analysis.ticker}
               </h2>
-              <StockChart data={analysis.historicalData} />
+              <StockChart
+                data={analysis.historicalData}
+                entryPoint={analysis.entryPoint}
+                stopLoss={analysis.stopLoss}
+                targetPrice={analysis.targetPrice}
+                primarySupport={analysis.primarySupport}
+                primaryResistance={analysis.primaryResistance}
+              />
             </div>
 
             {/* AI Analysis */}
