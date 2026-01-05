@@ -30,12 +30,14 @@ export default function StockChart({
   useEffect(() => {
     if (!isMounted || !chartContainerRef.current || typeof window === 'undefined') return;
 
+    let chartInstance: any = null;
+
     // Dynamically import lightweight-charts only on client
     import('lightweight-charts').then(({ createChart, ColorType, CrosshairMode }) => {
       if (!chartContainerRef.current) return;
 
       // Create chart
-      const chart = createChart(chartContainerRef.current, {
+      chartInstance = createChart(chartContainerRef.current, {
         layout: {
           background: { type: ColorType.Solid, color: "#0f172a" },
           textColor: "#94a3b8",
@@ -76,7 +78,7 @@ export default function StockChart({
       });
 
       // Add candlestick series
-      const candlestickSeries = (chart as any).addCandlestickSeries({
+      const candlestickSeries = chartInstance.addCandlestickSeries({
         upColor: "#10b981",
         downColor: "#ef4444",
         borderUpColor: "#10b981",
@@ -85,9 +87,9 @@ export default function StockChart({
         wickDownColor: "#ef4444",
       });
 
-      // Format data for lightweight-charts
+      // Format data for lightweight-charts (time must be in seconds or YYYY-MM-DD format)
       const formattedData = data.map((point) => ({
-        time: point.date,
+        time: point.date as any, // Keep YYYY-MM-DD format
         open: point.open,
         high: point.high,
         low: point.low,
@@ -154,8 +156,8 @@ export default function StockChart({
 
       // Handle resize
       const handleResize = () => {
-        if (chartContainerRef.current) {
-          chart.applyOptions({
+        if (chartContainerRef.current && chartInstance) {
+          chartInstance.applyOptions({
             width: chartContainerRef.current.clientWidth,
           });
         }
@@ -164,14 +166,16 @@ export default function StockChart({
       window.addEventListener("resize", handleResize);
 
       // Fit content
-      chart.timeScale().fitContent();
-
-      // Cleanup
-      return () => {
-        window.removeEventListener("resize", handleResize);
-        chart.remove();
-      };
+      chartInstance.timeScale().fitContent();
     });
+
+    // Cleanup
+    return () => {
+      if (chartInstance) {
+        window.removeEventListener("resize", () => {});
+        chartInstance.remove();
+      }
+    };
   }, [isMounted, data, entryPoint, stopLoss, targetPrice, primarySupport, primaryResistance]);
 
   if (!isMounted) {
