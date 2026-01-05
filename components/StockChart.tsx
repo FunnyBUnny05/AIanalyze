@@ -206,7 +206,7 @@ export default function StockChart({
         chartInstanceRef.current = null;
       }
     };
-  }, [isMounted, data, entryPoint, stopLoss, targetPrice, primarySupport, primaryResistance, chartReady]);
+  }, [isMounted, data, entryPoint, stopLoss, targetPrice, primarySupport, primaryResistance]);
 
   if (!isMounted) {
     return (
