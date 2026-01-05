@@ -17,7 +17,13 @@ This is the **static/mock version** that demonstrates the complete UI flow witho
 - ✅ Mock data service simulating Perplexity API
 - ✅ Responsive design for all screen sizes
 
-### Getting Started
+### 🌐 Live Demo
+
+Visit the live app: **[https://funnybunny05.github.io/AIanalyze](https://funnybunny05.github.io/AIanalyze)**
+
+> Automatically deployed from the `claude/init-nextjs-tailwind-e6AAU` branch via GitHub Actions
+
+### Getting Started (Local Development)
 
 1. **Install dependencies:**
    ```bash
@@ -36,6 +42,14 @@ This is the **static/mock version** that demonstrates the complete UI flow witho
    - Enter any stock ticker (e.g., AAPL, TSLA, NVDA)
    - Click "Search" and watch the loading state
    - View the mock technical analysis and charts
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+The static site will be generated in the `out/` directory.
 
 ### Project Structure
 
@@ -79,12 +93,29 @@ This is the **static/mock version** that demonstrates the complete UI flow witho
 - Custom prompt engineering for technical analysis
 - Dynamic entry/exit point calculations
 
+## Deployment
+
+This app is configured for automatic deployment to GitHub Pages:
+
+- **Deployment Trigger:** Push to `claude/init-nextjs-tailwind-e6AAU` branch
+- **GitHub Actions:** `.github/workflows/deploy.yml`
+- **Output:** Static export to `/out` directory
+- **URL:** https://funnybunny05.github.io/AIanalyze
+
+### Manual Deployment Steps
+
+1. Enable GitHub Pages in repository settings
+2. Set source to "GitHub Actions"
+3. Push to the deployment branch
+4. GitHub Actions will automatically build and deploy
+
 ## Development Notes
 
 - All mock data includes realistic price movements and volume
 - Loading states simulate actual API response times (1.5s)
 - Analysis text is structured to match future Claude output format
 - Components are designed for easy data source swapping
+- Static export compatible with GitHub Pages
 
 ## License
 
